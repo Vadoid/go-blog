@@ -21,13 +21,21 @@ var (
 	postsMu sync.Mutex
 )
 
+var persistent = false // Toggle for persistence, if true uses sqlite, if false runs with no persistency
+//The idea is that db.go is separate and can be changed to any db required.
+
 func main() {
 	http.HandleFunc("/posts", postsHandler)
 	http.HandleFunc("/posts/", postHandler)
 	fs := http.FileServer(http.Dir("./static"))
 	http.Handle("/", fs)
 
-	log.Println("Server started at :8080")
+	if persistent { // db.go
+		InitDB("posts.db") // Init the SQLite database
+		log.Println("SQLite DB initialised")
+	}
+
+	log.Println("Server started at port :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
@@ -63,6 +71,17 @@ func postHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func getPosts(w http.ResponseWriter, r *http.Request) {
+	if persistent {
+		posts, err := GetAllPosts()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(posts)
+		return
+	}
+
 	postsMu.Lock()
 	defer postsMu.Unlock()
 
@@ -78,12 +97,20 @@ func createPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	postsMu.Lock()
-	defer postsMu.Unlock()
+	if persistent {
+		err := InsertPost(&post)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	} else {
+		postsMu.Lock()
+		defer postsMu.Unlock()
 
-	post.ID = nextID
-	nextID++
-	posts = append(posts, post)
+		post.ID = nextID
+		nextID++
+		posts = append(posts, post)
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -91,6 +118,21 @@ func createPost(w http.ResponseWriter, r *http.Request) {
 }
 
 func getPost(w http.ResponseWriter, r *http.Request, id int) {
+	if persistent {
+		post, err := GetPostByID(id)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if post == nil {
+			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(post)
+		return
+	}
+
 	postsMu.Lock()
 	defer postsMu.Unlock()
 
@@ -113,6 +155,17 @@ func updatePost(w http.ResponseWriter, r *http.Request, id int) {
 		return
 	}
 
+	if persistent {
+		err := UpdatePostByID(id, &updatedPost)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(updatedPost)
+		return
+	}
+
 	postsMu.Lock()
 	defer postsMu.Unlock()
 
@@ -130,6 +183,16 @@ func updatePost(w http.ResponseWriter, r *http.Request, id int) {
 }
 
 func deletePost(w http.ResponseWriter, r *http.Request, id int) {
+	if persistent {
+		err := DeletePostByID(id)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
 	postsMu.Lock()
 	defer postsMu.Unlock()
 

@@ -1,8 +1,9 @@
-# Simple Blog Application
+# Basic Blog Application
 
-This is a simple blog application built using Go for the backend and Alpine.js, HTMX, and Tailwind CSS for the frontend.
-The application allows users to create, update, delete, and view blog posts. The idea was to create a simple restful API with Go.
-Todo: create a firebase integration.
+This is a basic blog application built using Go for the backend and Alpine.js, HTMX, and Tailwind CSS for the frontend (I am very bad at frontend, so it is what it is).
+The application allows users to create, update, delete, and view blog posts. 
+The idea was to create a simple restful CRUD API with Go and add some frontend features. The blog app can be stateless or stateful with SQLite.
+
 
 ## Features (so far)
 
@@ -23,7 +24,7 @@ Todo: create a firebase integration.
 
 ### Prerequisites
 
-- Go installed on your local machine.
+- Go [installed](https://go.dev/doc/install) on your local machine.
 
 ### Installation
 
@@ -35,19 +36,23 @@ Todo: create a firebase integration.
     ```sh
     cd go-blog
     ```
+3. If you want to run SQLite persistent version, set value to "true" in [main.go](./main.go)
+    ```sh
+    var persistent = false 
+    ```
 
 ### Running the Application
 
 1. Start the Go server:
     ```sh
-    go run main.go
+    go run .
     ```
 2. Open your web browser and navigate to:
     ```
     http://localhost:8080
     ```
 
-## Usage
+## Usage (if you're confused)
 
 ### Creating a Post
 
