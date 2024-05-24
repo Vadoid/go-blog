@@ -28,14 +28,14 @@ jobs:
       id: determine-persistent
       run: |
         if grep -q "var persistent = true" main.go; then
-          echo "::set-output name=persistent::true"
+          echo "persistent=true" >> $GITHUB_ENV
         else
-          echo "::set-output name=persistent::false"
+          echo "persistent=false" >> $GITHUB_ENV
         fi
 
     - name: Run tests
       run: |
-        if [ "${{ steps.determine-persistent.outputs.persistent }}" = "true" ]; then
+        if [ "${{ env.persistent }}" = "true" ]; then
           go test -v -tags=persistent ./...
         else
           go test -v $(find . -name "*.go" ! -name "db_test.go")
