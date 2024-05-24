@@ -77,13 +77,13 @@ The idea was to create a simple restful CRUD API with Go and add some frontend f
 
 ## Code Structure
 
-- **main.go**: Go server code that handles API requests for creating, reading, updating, and deleting posts.
-- **main_test.go**: Test for `main.go` triggered automatically via Github Actions (for local test do `go test -v`).
-- **db.go**: Handles DB operations, only kicks in when the persistent var is set to true.
-- **db_test.go**: Test of DB deployment and CRUD operations. Triggers only if `persistent = true` in `main.go`.
-- **local_test_and_run.sh**: Bash script to test and run locally.
-- **app.yaml**: One liner for Google App Engine deployment.
-- **templates/index.html**: HTML file with Alpine.js and HTMX for the frontend functionality.
+- **_main.go_**: Go server code that handles API requests for creating, reading, updating, and deleting posts.
+- **_main_test.go_**: Test for `main.go` triggered automatically via Github Actions (for local test do `go test -v`).
+- **_db.go_**: Handles DB operations, only kicks in when the persistent var is set to true.
+- **_db_test.go_**: Test of DB deployment and CRUD operations. Triggers only if `persistent = true` in `main.go`.
+- **_local_test_and_run.sh_**: Bash script to test and run locally.
+- **_app.yaml_**: One liner for Google App Engine deployment.
+- **_templates/index.html_**: HTML file with Alpine.js and HTMX for the frontend functionality.
 
 
 
