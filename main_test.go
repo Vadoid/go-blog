@@ -43,6 +43,37 @@ func getToken() (string, error) {
 	return response["token"], nil
 }
 
+func TestLogin(t *testing.T) {
+	creds := &Credentials{Username: "admin", Password: "password"}
+	body, err := json.Marshal(creds)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req, err := http.NewRequest("POST", "/login", bytes.NewBuffer(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(loginHandler)
+	handler.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+	}
+
+	var response map[string]string
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatal(err)
+	}
+
+	if response["token"] == "" {
+		t.Errorf("login handler did not return a token")
+	}
+}
+
 func TestGetPosts(t *testing.T) {
 	persistent = false // Use in-memory storage for testing
 	clearData()        // Clear any existing data
