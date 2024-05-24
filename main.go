@@ -21,7 +21,7 @@ var (
 	postsMu sync.Mutex
 )
 
-var persistent = false // Toggle for persistence, if true uses sqlite, if false runs with no persistency
+var persistent = true // Toggle for persistence, if true uses sqlite, if false runs with no persistency
 //The idea is that db.go is separate and can be changed to any db required.
 
 func main() {
