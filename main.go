@@ -7,12 +7,20 @@ import (
 	"path/filepath"
 	"strconv"
 	"sync"
+	"time"
+
+	"github.com/dgrijalva/jwt-go"
 )
 
 type Post struct {
 	ID      int    `json:"id"`
 	Title   string `json:"title"`
 	Content string `json:"content"`
+}
+
+type Credentials struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
 }
 
 var (
@@ -22,21 +30,93 @@ var (
 )
 
 var persistent = false // Toggle for persistence, if true uses sqlite, if false runs with no persistency
-//The idea is that db.go is separate and can be changed to any db required.
+
+var jwtKey = []byte("secret_key") // Secret key for JWT
 
 func main() {
-	http.HandleFunc("/posts", postsHandler)
-	http.HandleFunc("/posts/", postHandler)
+	http.HandleFunc("/login", loginHandler)
+	http.HandleFunc("/posts", jwtMiddleware(postsHandler))
+	http.HandleFunc("/posts/", jwtMiddleware(postHandler))
 	fs := http.FileServer(http.Dir("./templates"))
 	http.Handle("/", fs)
 
-	if persistent { // db.go
+	if persistent {
 		InitDB("posts.db") // Init the SQLite database
 		log.Println("SQLite DB initialised")
 	}
 
 	log.Println("Server started at port :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
+}
+
+func loginHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var creds Credentials
+	if err := json.NewDecoder(r.Body).Decode(&creds); err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	if creds.Username == "admin" && creds.Password == "password" {
+		expirationTime := time.Now().Add(5 * time.Minute)
+		claims := &jwt.StandardClaims{
+			ExpiresAt: expirationTime.Unix(),
+		}
+
+		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+		tokenString, err := token.SignedString(jwtKey)
+		if err != nil {
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
+
+		http.SetCookie(w, &http.Cookie{
+			Name:    "token",
+			Value:   tokenString,
+			Expires: expirationTime,
+		})
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"token":"` + tokenString + `"}`)) // Write the token to the response for testing purposes
+	} else {
+		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+	}
+}
+
+func jwtMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" || len(authHeader) < 7 || authHeader[:7] != "Bearer " {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		tokenStr := authHeader[7:]
+		claims := &jwt.StandardClaims{}
+
+		token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
+			return jwtKey, nil
+		})
+
+		if err != nil {
+			if err == jwt.ErrSignatureInvalid {
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return
+			}
+			http.Error(w, "Bad Request", http.StatusBadRequest)
+			return
+		}
+
+		if !token.Valid {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }
 
 func postsHandler(w http.ResponseWriter, r *http.Request) {

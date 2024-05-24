@@ -14,17 +14,52 @@ func clearData() {
 	nextID = 1
 }
 
+func getToken() (string, error) {
+	creds := &Credentials{Username: "admin", Password: "password"}
+	body, err := json.Marshal(creds)
+	if err != nil {
+		return "", err
+	}
+
+	req, err := http.NewRequest("POST", "/login", bytes.NewBuffer(body))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(loginHandler)
+	handler.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		return "", err
+	}
+
+	var response map[string]string
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		return "", err
+	}
+
+	return response["token"], nil
+}
+
 func TestGetPosts(t *testing.T) {
 	persistent = false // Use in-memory storage for testing
 	clearData()        // Clear any existing data
+
+	token, err := getToken()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	req, err := http.NewRequest("GET", "/posts", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
+	req.Header.Set("Authorization", "Bearer "+token)
 
 	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(postsHandler)
+	handler := jwtMiddleware(http.HandlerFunc(postsHandler))
 	handler.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusOK {
@@ -46,6 +81,11 @@ func TestCreatePost(t *testing.T) {
 	persistent = false // Use in-memory storage for testing
 	clearData()        // Clear any existing data
 
+	token, err := getToken()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	post := &Post{Title: "Test Title", Content: "Test Content"}
 	body, err := json.Marshal(post)
 	if err != nil {
@@ -57,9 +97,10 @@ func TestCreatePost(t *testing.T) {
 		t.Fatal(err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
 
 	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(postsHandler)
+	handler := jwtMiddleware(http.HandlerFunc(postsHandler))
 	handler.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusCreated {
@@ -84,6 +125,11 @@ func TestGetPost(t *testing.T) {
 	persistent = false // Use in-memory storage for testing
 	clearData()        // Clear any existing data
 
+	token, err := getToken()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	// First, create a post to retrieve
 	post := &Post{Title: "Test Title", Content: "Test Content"}
 	post.ID = nextID
@@ -94,9 +140,10 @@ func TestGetPost(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	req.Header.Set("Authorization", "Bearer "+token)
 
 	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(postHandler)
+	handler := jwtMiddleware(http.HandlerFunc(postHandler))
 	handler.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusOK {
@@ -117,6 +164,11 @@ func TestUpdatePost(t *testing.T) {
 	persistent = false // Use in-memory storage for testing
 	clearData()        // Clear any existing data
 
+	token, err := getToken()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	// First, create a post to update
 	post := &Post{Title: "Test Title", Content: "Test Content"}
 	post.ID = nextID
@@ -134,9 +186,10 @@ func TestUpdatePost(t *testing.T) {
 		t.Fatal(err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
 
 	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(postHandler)
+	handler := jwtMiddleware(http.HandlerFunc(postHandler))
 	handler.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusOK {
@@ -157,6 +210,11 @@ func TestDeletePost(t *testing.T) {
 	persistent = false // Use in-memory storage for testing
 	clearData()        // Clear any existing data
 
+	token, err := getToken()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	// First, create a post to delete
 	post := &Post{Title: "Test Title", Content: "Test Content"}
 	post.ID = nextID
@@ -167,9 +225,10 @@ func TestDeletePost(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	req.Header.Set("Authorization", "Bearer "+token)
 
 	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(postHandler)
+	handler := jwtMiddleware(http.HandlerFunc(postHandler))
 	handler.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusNoContent {

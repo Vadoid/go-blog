@@ -9,8 +9,27 @@
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
 <body class="bg-gray-100 p-8">
+    <script>
+        function getCookie(name) {
+            let value = `; ${document.cookie}`;
+            let parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+        }
+
+        function deleteCookie(name) {
+            document.cookie = name + '=; Max-Age=0; path=/';
+        }
+
+        const token = getCookie('token');
+        if (!token) {
+            window.location.href = "/login.html";
+        }
+    </script>
     <div class="container mx-auto">
-        <h1 class="text-4xl font-bold text-center mb-8">Simple Blog</h1>
+        <div class="flex justify-between items-center mb-8">
+            <h1 class="text-4xl font-bold">Simple Blog</h1>
+            <button id="logout-button" class="bg-red-500 text-white p-2 rounded-lg hover:bg-red-600">Logout</button>
+        </div>
         
         <!-- Create Post Form -->
         <div class="bg-white p-6 rounded-lg shadow-lg mb-8">
@@ -60,8 +79,14 @@
     </div>
 
     <script>
+        document.getElementById('logout-button').addEventListener('click', function() {
+            deleteCookie('token');
+            window.location.href = "/login.html";
+        });
+
         document.getElementById('create-post-form').addEventListener('submit', function(event) {
             event.preventDefault();
+            const token = getCookie('token');
             let form = event.target;
             let formData = new FormData(form);
             let object = {};
@@ -71,7 +96,8 @@
             fetch('/posts', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
                 },
                 body: json
             })
@@ -96,53 +122,64 @@
         });
 
         function loadPosts() {
-            fetch('/posts')
-                .then(response => response.json())
-                .then(data => {
-                    let postsContainer = document.getElementById('posts');
-                    let template = document.getElementById('post-template').innerHTML;
-                    postsContainer.innerHTML = '';
-                    data.forEach(post => {
-                        let postElement = document.createElement('div');
-                        postElement.innerHTML = template;
+            const token = getCookie('token');
+            fetch('/posts', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                let postsContainer = document.getElementById('posts');
+                let template = document.getElementById('post-template').innerHTML;
+                postsContainer.innerHTML = '';
+                data.forEach(post => {
+                    let postElement = document.createElement('div');
+                    postElement.innerHTML = template;
 
-                        let component = postElement.firstElementChild;
-                        component.setAttribute('x-data', `{
-                            editing: false, 
-                            post: ${JSON.stringify(post)}, 
-                            updatePost() { 
-                                this.editing = false; 
-                                let updatedPost = { title: this.post.title, content: this.post.content }; 
-                                fetch('/posts/' + this.post.id, { 
-                                    method: 'PUT', 
-                                    headers: { 'Content-Type': 'application/json' }, 
-                                    body: JSON.stringify(updatedPost) 
-                                }).then(response => { 
-                                    if (response.ok) { 
-                                        loadPosts(); 
-                                    } else { 
-                                        console.error('Update failed'); 
-                                    } 
-                                }); 
-                            },
-                            deletePost() { 
-                                fetch('/posts/' + this.post.id, { 
-                                    method: 'DELETE' 
-                                }).then(response => { 
-                                    if (response.ok) { 
-                                        loadPosts(); 
-                                    } else { 
-                                        console.error('Delete failed'); 
-                                    } 
-                                }); 
-                            } 
-                        }`);
+                    let component = postElement.firstElementChild;
+                    component.setAttribute('x-data', `{
+                        editing: false, 
+                        post: ${JSON.stringify(post)}, 
+                        updatePost() { 
+                            this.editing = false; 
+                            let updatedPost = { title: this.post.title, content: this.post.content }; 
+                            fetch('/posts/' + this.post.id, { 
+                                method: 'PUT', 
+                                headers: { 
+                                    'Content-Type': 'application/json',
+                                    'Authorization': 'Bearer ${token}' 
+                                }, 
+                                body: JSON.stringify(updatedPost) 
+                            }).then(response => { 
+                                if (response.ok) { 
+                                    loadPosts(); 
+                                } else { 
+                                    console.error('Update failed'); 
+                                } 
+                            }); 
+                        },
+                        deletePost() { 
+                            fetch('/posts/' + this.post.id, { 
+                                method: 'DELETE',
+                                headers: { 
+                                    'Authorization': 'Bearer ${token}' 
+                                }
+                            }).then(response => { 
+                                if (response.ok) { 
+                                    loadPosts(); 
+                                } else { 
+                                    console.error('Delete failed'); 
+                                } 
+                            }); 
+                        } 
+                    }`);
 
-                        postsContainer.appendChild(component);
-                        Alpine.initTree(component);
-                    });
-                })
-                .catch(error => console.error('Error:', error));
+                    postsContainer.appendChild(component);
+                    Alpine.initTree(component);
+                });
+            })
+            .catch(error => console.error('Error:', error));
         }
 
         // Initially load posts

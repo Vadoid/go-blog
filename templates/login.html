@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="container mx-auto">
+        <div class="bg-blue-100 text-center py-4 lg:px-4">
+            <div class="p-2 bg-blue-600 items-center text-indigo-100 leading-none lg:rounded-full flex lg:inline-flex" role="alert">
+                <span class="flex rounded-full bg-blue-500 uppercase px-2 py-1 text-xs font-bold mr-3">Info</span>
+                <span class="font-semibold mr-2 text-left flex-auto">In this demo the default username is <b>admin</b> and password is <b>password</b>. Because security.</span>
+                <svg class="fill-current opacity-75 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M12.95 10.707l.707-.707L8 4.343 6.586 5.757 10.828 10l-4.242 4.243L8 15.657l4.95-4.95z"/></svg>
+            </div>
+        </div>
+
+        <h1 class="text-4xl font-bold text-center mb-8">Login</h1>
+        <div class="bg-white p-6 rounded-lg shadow-lg mb-8">
+            <form id="login-form" class="space-y-4">
+                <div>
+                    <label for="username" class="block text-lg font-medium text-gray-700">Username:</label>
+                    <input type="text" id="username" name="username" required class="w-full border p-2 rounded-lg">
+                </div>
+                <div>
+                    <label for="password" class="block text-lg font-medium text-gray-700">Password:</label>
+                    <input type="password" id="password" name="password" required class="w-full border p-2 rounded-lg">
+                </div>
+                <button type="submit" class="w-full bg-blue-500 text-white p-2 rounded-lg hover:bg-blue-600">Login</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('login-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            let form = event.target;
+            let formData = new FormData(form);
+            let object = {};
+            formData.forEach((value, key) => object[key] = value);
+            let json = JSON.stringify(object);
+
+            fetch('/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: json
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.token) {
+                    document.cookie = `token=${data.token}; path=/`;
+                    window.location.href = "/";
+                } else {
+                    alert('Login failed!');
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        });
+    </script>
+</body>
+</html>

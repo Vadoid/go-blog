@@ -4,6 +4,8 @@ This is a basic blog application built using Go for the backend and Alpine.js, H
 The application allows users to create, update, delete, and view blog posts. 
 The idea was to create a simple restful CRUD API with Go and add some frontend features. The blog app can be stateless or stateful with SQLite.
 
+**The default username and password are `admin` and `password` in this demo**
+
 
 ## Features (so far)
 
@@ -74,6 +76,12 @@ The idea was to create a simple restful CRUD API with Go and add some frontend f
 ### Deleting a Post
 
 1. Click the "Delete" button under a post to remove it from the list.
+
+
+### CLI Authorisations (before I forget)
+
+1. Issue `TOKEN=$(curl -X POST http://localhost:8080/login -d '{"username":"admin","password":"password"}' -H "Content-Type: application/json" | jq -r .token)` to authorise.
+2. To test API use `curl -X GET http://localhost:8080/posts -H "Authorization: Bearer $TOKEN"`
 
 ## Code Structure
 
