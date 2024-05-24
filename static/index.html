@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Blog</title>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://unpkg.com/htmx.org@1.7.0"></script>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="container mx-auto">
+        <h1 class="text-4xl font-bold text-center mb-8">Simple Blog</h1>
+        
+        <!-- Create Post Form -->
+        <div class="bg-white p-6 rounded-lg shadow-lg mb-8">
+            <form id="create-post-form" class="space-y-4">
+                <div>
+                    <label for="title" class="block text-lg font-medium text-gray-700">Title:</label>
+                    <input type="text" id="title" name="title" required class="w-full border p-2 rounded-lg">
+                </div>
+                <div>
+                    <label for="content" class="block text-lg font-medium text-gray-700">Content:</label>
+                    <textarea id="content" name="content" required class="w-full border p-2 rounded-lg"></textarea>
+                </div>
+                <button type="submit" class="w-full bg-blue-500 text-white p-2 rounded-lg hover:bg-blue-600">Create Post</button>
+            </form>
+        </div>
+
+        <!-- Toggle Posts Button -->
+        <div class="text-center mb-8">
+            <button id="toggle-posts-button" class="bg-green-500 text-white p-2 rounded-lg hover:bg-green-600">Show All Posts</button>
+        </div>
+
+        <!-- Posts List -->
+        <div id="posts" class="space-y-4 hidden">
+            <!-- Posts will be loaded here -->
+        </div>
+        
+        <!-- Template for posts -->
+        <template id="post-template">
+            <div class="post bg-white p-6 rounded-lg shadow-lg" x-data="{ editing: false, post: {} }">
+                <h2 class="text-2xl font-bold" x-show="!editing" x-text="post.title"></h2>
+                <p class="text-gray-700" x-show="!editing" x-text="post.content"></p>
+                <div x-show="editing">
+                    <form @submit.prevent="updatePost()">
+                        <input type="hidden" name="id" x-bind:value="post.id">
+                        <input type="text" name="title" x-model="post.title" class="w-full border p-2 rounded-lg mb-2">
+                        <textarea name="content" x-model="post.content" class="w-full border p-2 rounded-lg mb-2"></textarea>
+                        <button type="submit" class="w-full bg-blue-500 text-white p-2 rounded-lg hover:bg-blue-600">Update</button>
+                    </form>
+                    <button @click="editing = false" class="w-full bg-gray-500 text-white p-2 rounded-lg hover:bg-gray-600 mt-2">Cancel</button>
+                </div>
+                <div class="flex space-x-2 mt-4">
+                    <button @click="editing = true" x-show="!editing" class="bg-yellow-500 text-white p-2 rounded-lg hover:bg-yellow-600">Edit</button>
+                    <button @click="deletePost()" class="bg-red-500 text-white p-2 rounded-lg hover:bg-red-600">Delete</button>
+                </div>
+            </div>
+        </template>
+    </div>
+
+    <script>
+        document.getElementById('create-post-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            let form = event.target;
+            let formData = new FormData(form);
+            let object = {};
+            formData.forEach((value, key) => object[key] = value);
+            let json = JSON.stringify(object);
+
+            fetch('/posts', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: json
+            })
+            .then(response => response.json())
+            .then(data => {
+                form.reset();
+                loadPosts();
+            })
+            .catch(error => console.error('Error:', error));
+        });
+
+        document.getElementById('toggle-posts-button').addEventListener('click', function() {
+            const postsContainer = document.getElementById('posts');
+            if (postsContainer.classList.contains('hidden')) {
+                loadPosts();
+                postsContainer.classList.remove('hidden');
+                this.textContent = 'Hide All Posts';
+            } else {
+                postsContainer.classList.add('hidden');
+                this.textContent = 'Show All Posts';
+            }
+        });
+
+        function loadPosts() {
+            fetch('/posts')
+                .then(response => response.json())
+                .then(data => {
+                    let postsContainer = document.getElementById('posts');
+                    let template = document.getElementById('post-template').innerHTML;
+                    postsContainer.innerHTML = '';
+                    data.forEach(post => {
+                        let postElement = document.createElement('div');
+                        postElement.innerHTML = template;
+
+                        let component = postElement.firstElementChild;
+                        component.setAttribute('x-data', `{
+                            editing: false, 
+                            post: ${JSON.stringify(post)}, 
+                            updatePost() { 
+                                this.editing = false; 
+                                let updatedPost = { title: this.post.title, content: this.post.content }; 
+                                fetch('/posts/' + this.post.id, { 
+                                    method: 'PUT', 
+                                    headers: { 'Content-Type': 'application/json' }, 
+                                    body: JSON.stringify(updatedPost) 
+                                }).then(response => { 
+                                    if (response.ok) { 
+                                        loadPosts(); 
+                                    } else { 
+                                        console.error('Update failed'); 
+                                    } 
+                                }); 
+                            },
+                            deletePost() { 
+                                fetch('/posts/' + this.post.id, { 
+                                    method: 'DELETE' 
+                                }).then(response => { 
+                                    if (response.ok) { 
+                                        loadPosts(); 
+                                    } else { 
+                                        console.error('Delete failed'); 
+                                    } 
+                                }); 
+                            } 
+                        }`);
+
+                        postsContainer.appendChild(component);
+                        Alpine.initTree(component);
+                    });
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        // Initially load posts
+        loadPosts();
+    </script>
+</body>
+</html>
